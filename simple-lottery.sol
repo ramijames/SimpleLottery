@@ -3,62 +3,56 @@ pragma solidity ^0.8.0;
 
 contract SimpleLottery {
     address public manager;
-    uint public maxPlayers;
-    address payable[] public players;
-    uint public currentLotteryId;
 
     struct Lottery {
-        uint256 id;
         address payable[] players;
         address payable winner;
         uint256 maxPlayers;
         uint256 prize;
-        uint contractFee;
-        uint256 createdAt;
-        uint256 updatedAt;
+        uint contractFee; // Percentage of the prize that goes to the contract
     }
 
+    Lottery public lottery;
+
     constructor() {
-        manager = msg.sender;
-        maxPlayers = 0; // Set an initial value for maxPlayers
+        manager = payable(msg.sender);
+    }
+
+    function createLottery() public restricted {
+        lottery = Lottery({
+            players: new address payable[](0),
+            winner: address(0), // sets the winner to the zero address for each new lottery
+            maxPlayers: 100,
+            prize: address(this).balance,
+            contractFee: 10
+        });
     }
 
     function startLottery() public restricted {
-        require(maxPlayers > 0, "Max players not set");
-        createLottery(maxPlayers);
-    }
-
-    function createLottery(uint256 _maxPlayers) public restricted {
-        Lottery memory newLottery;
-        newLottery.id = currentLotteryId + 1;
-        newLottery.players = players;
-        newLottery.winner = address(0);
-        newLottery.maxPlayers = maxPlayers;
-        newLottery.prize = address(this).balance;
-        newLottery.createdAt = block.timestamp;
-        newLottery.updatedAt = block.timestamp;
-        currentLotteryId = newLottery.id;
+        require(lottery.maxPlayers > 1, "Max players is too low");
+        createLottery();
     }
 
     function enter() public payable {
         require(msg.value > 0.01 ether, "Not enough ether");
-        require(players.length < maxPlayers, "Max players reached");
-        players.push(payable(msg.sender));
-        if (players.length == maxPlayers) {
+        require(lottery.players.length < lottery.maxPlayers, "Max players reached");
+        lottery.players.push(payable(msg.sender));
+        if (lottery.players.length == lottery.maxPlayers) {
             pickWinner();
         }
     }
 
-    function pickWinner(uint _contractFee) private {
-        uint256 index = random() % players.length;
-        address payable winner = players[index];
-        uint256 payout = address(this).balance - _contractFee;
-        winner.transfer(payout);
-        players = new address payable[](0);
-    }
+    function pickWinner() private {
+        require(lottery.players.length > 0, "No players in the lottery");
 
-    function getPlayers() public view returns (address payable[] memory) {
-        return players;
+        uint256 index = random() % lottery.players.length;
+        address payable winner = lottery.players[index];
+        uint256 payout = address(this).balance - lottery.contractFee;
+
+        lottery.players = new address payable[](0);
+
+        // Perform the external call last
+        winner.transfer(payout);
     }
 
     modifier restricted() {
@@ -66,8 +60,19 @@ contract SimpleLottery {
         _;
     }
 
+    // **This is dangerous!** Recommended to use a public RNG oracle like Chainlink VRF
     function random() private view returns (uint256) {
-        return uint256(keccak256(abi.encodePacked(block.prevrandao, block.timestamp, players.length)));
+        return uint256(keccak256(abi.encodePacked(block.prevrandao, block.timestamp, lottery.players.length)));
     }
+
+    // Fallback function to handle accidental ETH transfers
+    receive() external payable {
+        // You can log the event or perform any other necessary actions
+        emit EtherReceived(msg.sender, msg.value);
+    }
+
+    // Event to log accidental ETH transfers
+    event EtherReceived(address indexed sender, uint256 value);
+
 }
 
