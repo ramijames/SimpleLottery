@@ -2,8 +2,10 @@
 pragma solidity ^0.8.0;
 
 contract SimpleLottery {
-
     address public manager;
+    uint public maxPlayers;
+    address payable[] public players;
+    uint public currentLotteryId;
 
     struct Lottery {
         uint256 id;
@@ -11,21 +13,33 @@ contract SimpleLottery {
         address payable winner;
         uint256 maxPlayers;
         uint256 prize;
+        uint contractFee;
         uint256 createdAt;
         uint256 updatedAt;
     }
-    
-    // Function to start the lottery. First you have to check if the maxPlayers has been set by the manager. If so, you can start a lottery with an incremented id
-    function startLottery(uint256 _maxPlayers) public {
-        require(_maxPlayers > 0, "Max players must be greater than 0");
-        require(maxPlayers == 0, "Lottery started");
-        maxPlayers = _maxPlayers;
+
+    constructor() {
         manager = msg.sender;
-        id = id + 1;
-        createdAt = block.timestamp;
+        maxPlayers = 0; // Set an initial value for maxPlayers
     }
 
-    // Function to enter the lottery. Each player will send ether to this contract and will be added to the players array. If the maxPlayers is reached, the lottery will be closed and a winner will be picked using the pickWinner function
+    function startLottery() public restricted {
+        require(maxPlayers > 0, "Max players not set");
+        createLottery(maxPlayers);
+    }
+
+    function createLottery(uint256 _maxPlayers) public restricted {
+        Lottery memory newLottery;
+        newLottery.id = currentLotteryId + 1;
+        newLottery.players = players;
+        newLottery.winner = address(0);
+        newLottery.maxPlayers = maxPlayers;
+        newLottery.prize = address(this).balance;
+        newLottery.createdAt = block.timestamp;
+        newLottery.updatedAt = block.timestamp;
+        currentLotteryId = newLottery.id;
+    }
+
     function enter() public payable {
         require(msg.value > 0.01 ether, "Not enough ether");
         require(players.length < maxPlayers, "Max players reached");
@@ -35,17 +49,14 @@ contract SimpleLottery {
         }
     }
 
-    // Function to randomly pick a winner from the players array. The winner will receive the prize and the players array will be resetted
-    function pickWinner() private {
+    function pickWinner(uint _contractFee) private {
         uint256 index = random() % players.length;
-        winner = players[index];
-        winner.transfer(address(this).balance);
+        address payable winner = players[index];
+        uint256 payout = address(this).balance - _contractFee;
+        winner.transfer(payout);
         players = new address payable[](0);
-        prize = address(this).balance;
-        updatedAt = block.timestamp;
     }
 
-    // Function to list all players publicly, which can be used to display the players on the frontend
     function getPlayers() public view returns (address payable[] memory) {
         return players;
     }
@@ -54,4 +65,9 @@ contract SimpleLottery {
         require(msg.sender == manager, "Only manager can call this function");
         _;
     }
+
+    function random() private view returns (uint256) {
+        return uint256(keccak256(abi.encodePacked(block.prevrandao, block.timestamp, players.length)));
+    }
 }
+
