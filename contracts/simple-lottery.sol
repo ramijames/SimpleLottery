@@ -31,6 +31,7 @@ contract SimpleLottery {
         players = new address payable[](0);
         winner = payable(address(0));
         prize = 0;
+        maxPlayers = maxPlayers * 2;
     }
 
     function finishRound() internal {
@@ -40,7 +41,6 @@ contract SimpleLottery {
 
         prize = (prize * 9) / 10;
         players = new address payable[](0);
-        maxPlayers = maxPlayers * 2;
 
         winner.transfer(prize);
         earningsWallet.transfer(address(this).balance);
@@ -67,6 +67,11 @@ contract SimpleLottery {
 
     function getPlayers() public view returns (address payable[] memory) {
         return players;
+    }
+
+    // function to return maxPlayers
+    function getMaxPlayers() public view returns (uint256) {
+        return maxPlayers;
     }
 
     // This is dangerous! Recommended to use a public RNG oracle like Chainlink VRF

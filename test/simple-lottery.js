@@ -59,4 +59,31 @@ describe("SimpleLottery", function () {
     expect(players.length).to.equal(0);
     console.log("players: ", players);
   });
+
+  // should confirm that the maxPlayers is doubled each round
+  it("Should confirm that the maxPlayers is doubled each round", async function () {
+    // Deploy the SimpleLottery contract
+    const SimpleLottery = await ethers.getContractFactory("SimpleLottery");
+    const simpleLottery = await SimpleLottery.deploy();
+
+    // Wait for the contract to be mined
+    await simpleLottery.deployed();
+
+    // Call the enter function and set the amount to send
+    const amount = ethers.utils.parseEther("1");
+
+    // call the enter function nine times
+    for (let i = 0; i < 10; i++) {
+      await simpleLottery.enter({ value: amount });
+    }
+
+    // Call the getPlayers function
+    const maxPlayers = await simpleLottery.maxPlayers();
+    const max = await maxPlayers.toNumber();
+
+    // Perform assertions
+    // maxPlayers should be greater than the initial value of 10
+    console.log("maxPlayers: ", max);
+    expect(max).to.be.greaterThan(10);
+  });
 });
