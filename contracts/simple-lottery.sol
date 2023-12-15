@@ -40,7 +40,7 @@ contract SimpleLottery {
 
         prize = (prize * 9) / 10;
         players = new address payable[](0);
-        maxPlayers = maxPlayers * 1.1;
+        maxPlayers = maxPlayers * 2;
 
         winner.transfer(prize);
         earningsWallet.transfer(address(this).balance);
@@ -63,6 +63,10 @@ contract SimpleLottery {
     modifier restricted() {
         require(msg.sender == manager, "Only manager can call this function");
         _;
+    }
+
+    function getPlayers() public view returns (address payable[] memory) {
+        return players;
     }
 
     // This is dangerous! Recommended to use a public RNG oracle like Chainlink VRF

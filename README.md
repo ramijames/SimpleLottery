@@ -9,3 +9,17 @@ Each lottery has a maximum number of participants. The contract owner must set t
 Each new lottery will run until the max number of participants is reached. Upon completion the contract will pay out to the randomly selected winner.
 
 There is a contract fee which is subtracted from the total contract payout. This contract fee is set on deployment.
+
+## Testing
+
+Testing is using Hardhat.
+
+You can run the tests with:
+
+```sh
+npx hardhat test
+```
+
+Coverage includes:
+
+- Ensuring that the deployment
