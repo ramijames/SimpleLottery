@@ -4,59 +4,60 @@ pragma solidity ^0.8.0;
 contract SimpleLottery {
     address public manager;
 
-    struct Lottery {
-        address payable[] players;
-        address payable winner;
-        uint256 maxPlayers;
-        uint256 prize;
-        uint contractFee; // Percentage of the prize that goes to the contract
-    }
+    uint256 public maxPlayers;
+    uint256 public contractFee;
 
-    Lottery public lottery;
+    address payable[] public players;
+    address payable public winner;
+    address payable public earningsWallet;
+    uint256 public prize;
 
     constructor() {
         manager = payable(msg.sender);
+        earningsWallet = payable(0x81f9E50f0F1f509eEF083Ff6d6Fa36caB15D6Bca);
+        contractFee = 9;
+        maxPlayers = 10; // first run
     }
 
-    function createLottery() public restricted {
-        lottery = Lottery({
-            players: new address payable[](0),
-            winner: payable(address(0)), // sets the winner to the zero address for each new lottery
-            maxPlayers: 100,
-            prize: address(this).balance,
-            contractFee: 10
-        });
+    function changeManager(address _newManager) public restricted {
+        manager = payable(_newManager);
     }
 
-    function getPlayers() public view returns (address payable[] memory) {
-        return lottery.players;
+    function changeContractFee(uint256 _newFee) public restricted {
+        contractFee = _newFee;
     }
 
-    function startLottery() public restricted {
-        require(lottery.maxPlayers > 1, "Max players is too low");
-        createLottery();
+    function reset() public restricted {
+        players = new address payable[](0);
+        winner = payable(address(0));
+        prize = 0;
+    }
+
+    function finishRound() internal {
+        require(players.length == maxPlayers, "Invalid number of players");
+        uint256 index = random() % players.length;
+        winner = players[index];
+
+        prize = (prize * 9) / 10;
+        players = new address payable[](0);
+        maxPlayers = maxPlayers * 1.1;
+
+        winner.transfer(prize);
+        earningsWallet.transfer(address(this).balance);
+
+        reset();
     }
 
     function enter() public payable {
-        require(msg.value > 0.01 ether, "Not enough ether");
-        require(lottery.players.length < lottery.maxPlayers, "Max players reached");
-        lottery.players.push(payable(msg.sender));
-        if (lottery.players.length == lottery.maxPlayers) {
-            pickWinner();
+        require(msg.value > contractFee, "Not enough ether");
+        require(players.length < maxPlayers, "Max players reached");
+        players.push(payable(msg.sender));
+
+        prize += msg.value;
+
+        if (players.length == maxPlayers) {
+            finishRound();
         }
-    }
-
-    function pickWinner() private {
-        require(lottery.players.length > 0, "No players in the lottery");
-
-        uint256 index = random() % lottery.players.length;
-        address payable winner = lottery.players[index];
-        uint256 payout = address(this).balance - lottery.contractFee;
-
-        lottery.players = new address payable[](0);
-
-        // Perform the external call last
-        winner.transfer(payout);
     }
 
     modifier restricted() {
@@ -64,19 +65,10 @@ contract SimpleLottery {
         _;
     }
 
-    // **This is dangerous!** Recommended to use a public RNG oracle like Chainlink VRF
+    // This is dangerous! Recommended to use a public RNG oracle like Chainlink VRF
     function random() private view returns (uint256) {
-        return uint256(keccak256(abi.encodePacked(block.prevrandao, block.timestamp, lottery.players.length)));
+        return uint256(keccak256(abi.encodePacked(block.prevrandao, block.timestamp, players.length)));
     }
-
-    // Fallback function to handle accidental ETH transfers
-    receive() external payable {
-        // You can log the event or perform any other necessary actions
-        emit EtherReceived(msg.sender, msg.value);
-    }
-
-    // Event to log accidental ETH transfers
-    event EtherReceived(address indexed sender, uint256 value);
 
 }
 
