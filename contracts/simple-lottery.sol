@@ -1,4 +1,4 @@
-// SPDX-license-identifier: MIT
+// SPDX-License-Identifier: MIT 
 pragma solidity ^0.8.0;
 
 contract SimpleLottery {
@@ -21,7 +21,7 @@ contract SimpleLottery {
     function createLottery() public restricted {
         lottery = Lottery({
             players: new address payable[](0),
-            winner: address(0), // sets the winner to the zero address for each new lottery
+            winner: payable(address(0)), // sets the winner to the zero address for each new lottery
             maxPlayers: 100,
             prize: address(this).balance,
             contractFee: 10
