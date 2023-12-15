@@ -28,6 +28,10 @@ contract SimpleLottery {
         });
     }
 
+    function getPlayers() public view returns (address payable[] memory) {
+        return lottery.players;
+    }
+
     function startLottery() public restricted {
         require(lottery.maxPlayers > 1, "Max players is too low");
         createLottery();
